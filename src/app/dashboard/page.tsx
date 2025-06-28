@@ -2,23 +2,22 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from "axios";
-
 // Types
 type Bookings = {
   booking_id: number;
   checkin_date: string;
   checkout_date: string;
-  room_num: number[]; // Ensure this matches your API data (are they numbers or strings?)
+  room_num: number[];
 }
 
-type Reservation = {
+type Reservation= {
   reservation_id: number;
   checkin_date: string;
   checkout_date: string;
-  room_num: number[]; // Ensure this matches your API data (are they numbers or strings?)
+  room_num: number[];
 }
 
-type Room = {
+type Room={
   id: string;
   number: string;
   type: 'single' | 'double' | 'family';
@@ -110,21 +109,22 @@ const FrontDesk: React.FC = () => {
   const [activeNav, setActiveNav] = useState('front-desk');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  
   // Room data - fixed room numbers
   const [rooms] = useState<Room[]>([
     // Single Rooms
     { id: '1', number: '101', type: 'single', isActive: true },
     { id: '2', number: '510', type: 'single', isActive: true },
     { id: '3', number: '204', type: 'single', isActive: true },
-
+    
     // Double Rooms
     { id: '4', number: '102', type: 'double', isActive: true },
     { id: '5', number: '202', type: 'double', isActive: true },
     { id: '6', number: '307', type: 'double', isActive: true },
     { id: '7', number: '408', type: 'double', isActive: true },
-
+    
     // Family Rooms
+    
     { id: '8', number: '305', type: 'family', isActive: true },
     { id: '9', number: '601', type: 'family', isActive: true },
     { id: '10', number: '701', type: 'family', isActive: true },
@@ -134,48 +134,54 @@ const FrontDesk: React.FC = () => {
   const [bookings, setBookings] = useState<Bookings[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
 
-  // Fetch data on component mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+  // Fixed useEffect with proper error handling
+  // useEffect(() => {
+  //   const fetchData = async () => {
+  //     try {
+  //       setIsLoading(true);
+  //       setError(null);
+        
+  //       // Fetch both bookings and reservations
+  //       const [bookingsResponse, reservationsResponse] = await Promise.all([
+  //         axios.get("http://localhost:3000/booking/all"),
+  //         axios.get("http://localhost:3000/reservation/getAllReservations")
+  //       ]);
+        
+  //       setBookings(bookingsResponse.data);
+  //       setReservations(reservationsResponse.data);
+  //     } catch (error) {
+  //       console.error('Error fetching data:', error);
+  //       setError(error instanceof Error ? error.message : 'Failed to fetch data');
+  //       // Set mock data for demonstration if API fails
+  //       setBookings([]);
+  //       setReservations([]);
+  //     } finally {
+  //       setIsLoading(false);
+  //     }
+  //   };
 
-        // Fetch both bookings and reservations
-        const [bookingsResponse, reservationsResponse] = await Promise.all([
-          axios.get("http://localhost:3000/booking/all"),
-          axios.get("http://localhost:3000/reservation/getAllReservations")
-        ]);
+  //   fetchData();
+  // }, []);
 
-        console.log('API Bookings Data:', bookingsResponse.data);
-        console.log('API Reservations Data:', reservationsResponse.data);
 
-        setBookings(bookingsResponse.data);
-        setReservations(reservationsResponse.data);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setError(error instanceof Error ? error.message : 'Failed to fetch data');
-        // Optionally set mock data here if you want a fallback for API failures
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  useEffect(() => { axios.get("http://localhost:3000/booking/all").then(res => {console.log('API Bookings Data:', res.data); setBookings(res.data)}); }, []);
+  
+  useEffect(() => { axios.get("http://localhost:3000/reservation/getAllReservations").then(res => setReservations(res.data)); }, []);
+  
+  if(!bookings || !reservations) {console.error('Error fetching data:');}
 
-    fetchData();
-  }, []); // Empty dependency array means this runs once on mount
-
-  // Generate dates starting from current date -4 days to show a range
+  // Generate dates starting from current date
   const generateDates = useMemo(() => {
     const dates = [];
     const today = new Date();
+    // Set the start date to today - 4 days
     today.setHours(0, 0, 0, 0); // Normalize time to midnight
-
-    // Start from today - 3 days to get 4 days before current date + 19 days after (23 total)
+    today.setDate(today.getDate() - 3); // Start from 4 days ago
     const startDate = new Date(today);
-    startDate.setDate(today.getDate() - 3);
-
-    const daysToShow = 23; // Total number of days to display
-
+    
+    // Generate dates based on screen size
+    const daysToShow = 23;
+    
     for (let i = 0; i < daysToShow; i++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
@@ -184,12 +190,13 @@ const FrontDesk: React.FC = () => {
         month: date.getMonth(),
         year: date.getFullYear(),
         dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        fullDate: date.toISOString().split('T')[0], // YYYY-MM-DD
-        isToday: date.toDateString() === new Date().toDateString() // Check against actual today
+        fullDate: date.toISOString().split('T')[0],
+        isToday: date.toDateString() === today.toDateString()
       });
     }
+    
     return dates;
-  }, [currentDate]); // Recalculate if currentDate changes
+  }, [currentDate]);
 
   // Get current month name
   const currentMonthName = useMemo(() => {
@@ -205,122 +212,101 @@ const FrontDesk: React.FC = () => {
     });
   }, [rooms, searchTerm, selectedRoomType]);
 
-  // --- Core Logic for Highlighting ---
-
-  // Check if a date falls within a booking/reservation period (inclusive of check-in, exclusive of check-out)
+  // Check if a date falls within a booking/reservation period
   const isDateInPeriod = (date: string, checkinDate: string, checkoutDate: string): boolean => {
-    // A room is occupied from checkin_date up to, but not including, checkout_date
     return date >= checkinDate && date < checkoutDate;
   };
 
-
   // Get booking or reservation for specific room and date
-  // This function finds if a *specific cell* (roomNumber, date) is part of *any* booking/reservation
   const getItemForRoomAndDate = (roomNumber: string, date: string): { type: 'booking' | 'reservation' | null, item: Bookings | Reservation | null } => {
     const roomNum = parseInt(roomNumber);
-    // console.log(`Attempting to find item for Room: ${roomNum}, Date: ${date}`); // DEBUG
-
+    
+    
     // Check bookings first
-    const booking = bookings.find(booking => {
-        const roomMatch = booking.room_num && Array.isArray(booking.room_num) && booking.room_num.includes(roomNum);
-        const dateMatch = isDateInPeriod(date, booking.checkin_date, booking.checkout_date);
-        // if (roomMatch && dateMatch) { // DEBUG
-        //   console.log(`  -> Found booking ${booking.booking_id} for Room ${roomNum} on Date ${date}`); // DEBUG
-        // }
-        return roomMatch && dateMatch;
-    });
-
+    const booking = bookings.find(booking => 
+      booking.room_num && 
+      Array.isArray(booking.room_num) &&
+      booking.room_num.includes(roomNum) &&
+      isDateInPeriod(date, booking.checkin_date, booking.checkout_date)
+    );
+    
     if (booking) {
       return { type: 'booking', item: booking };
     }
-
+    
     // Check reservations
-    const reservation = reservations.find(reservation => {
-        const roomMatch = reservation.room_num && Array.isArray(reservation.room_num) && reservation.room_num.includes(roomNum);
-        const dateMatch = isDateInPeriod(date, reservation.checkin_date, reservation.checkout_date);
-        // if (roomMatch && dateMatch) { // DEBUG
-        //   console.log(`  -> Found reservation ${reservation.reservation_id} for Room ${roomNum} on Date ${date}`); // DEBUG
-        // }
-        return roomMatch && dateMatch;
-    });
-
+    const reservation = reservations.find(reservation => 
+      reservation.room_num && 
+      Array.isArray(reservation.room_num) &&
+      reservation.room_num.includes(roomNum) &&
+      isDateInPeriod(date, reservation.checkin_date, reservation.checkout_date)
+    );
+    
     if (reservation) {
       return { type: 'reservation', item: reservation };
     }
-
-    // console.log(`  -> No item found for Room: ${roomNum}, Date: ${date}`); // DEBUG
+    
     return { type: null, item: null };
   };
 
   // Get item type color
   const getItemTypeColor = (type: 'booking' | 'reservation' | null): string => {
     if (!type) return '';
-
+    
     switch (type) {
       case 'booking':
         return 'bg-emerald-500 text-white';
       case 'reservation':
         return 'bg-blue-500 text-white';
       default:
-        return 'bg-gray-100 text-gray-800'; // Should not be reached if type is null-checked
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  // Check if current date is the *start* of a booking/reservation
-  // This is used for rendering the *spanning bar*
+  // Check if current date is the start of a booking/reservation
   const isItemStart = (roomNumber: string, date: string): boolean => {
-    const roomNum = parseInt(roomNumber);
-
-    // Check bookings first
-    const booking = bookings.find(booking =>
-      booking.room_num &&
-      Array.isArray(booking.room_num) &&
-      booking.room_num.includes(roomNum) &&
-      booking.checkin_date === date // Only true if 'date' is the exact checkin date
-    );
-
-    if (booking) {
-      return true;
+    const { type, item } = getItemForRoomAndDate(roomNumber, date);
+    if (!item || !type) return false;
+    
+    if (type === 'booking') {
+      return (item as Bookings).checkin_date === date;
+    } else {
+      return (item as Reservation).checkin_date === date;
     }
-
-    // Check reservations
-    const reservation = reservations.find(reservation =>
-      reservation.room_num &&
-      Array.isArray(reservation.room_num) &&
-      reservation.room_num.includes(roomNum) &&
-      reservation.checkin_date === date
-    );
-
-    if (reservation) {
-      return true;
-    }
-
-    return false;
   };
 
-  // Calculate the span of days for a booking/reservation, starting from the checkin_date
+  // Calculate the span of days for a booking/reservation
   const calculateItemSpan = (roomNumber: string, startDate: string): number => {
-    const roomNum = parseInt(roomNumber);
-    const booking = bookings.find(b => b.room_num.includes(roomNum) && b.checkin_date === startDate);
-    const reservation = reservations.find(r => r.room_num.includes(roomNum) && r.checkin_date === startDate);
+    const { type, item } = getItemForRoomAndDate(roomNumber, startDate);
+    if (!item || !type) return 0;
 
-    const item = booking || reservation;
+    let checkin: string;
+    let checkout: string;
 
-    if (!item) return 0;
+    if (type === 'booking') {
+      const booking = item as Bookings;
+      checkin = booking.checkin_date;
+      checkout = booking.checkout_date;
+    } else {
+      const reservation = item as Reservation;
+      checkin = reservation.checkin_date;
+      checkout = reservation.checkout_date;
+    }
+    
+    const startIdx = generateDates.findIndex(d => d.fullDate === startDate);
+    if (startIdx === -1) return 1;
 
-    const checkin = new Date(item.checkin_date);
-    const checkout = new Date(item.checkout_date);
+    let span = 0;
+    for (let i = startIdx; i < generateDates.length; i++) {
+      if (isDateInPeriod(generateDates[i].fullDate, checkin, checkout)) {
+        span++;
+      } else {
+        break;
+      }
+    }
 
-    // Calculate days including the checkout date for visual span
-    // If checkin = 28, checkout = 30:
-    // Diff is 2 days (28->29, 29->30). We want to span 3 cells (28, 29, 30).
-    const diffTime = Math.abs(checkout.getTime() - checkin.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-    return diffDays;
+    return span;
   };
-
-  // --- End Core Logic for Highlighting ---
 
   // Navigate months
   const navigateMonth = (direction: 'prev' | 'next') => {
@@ -333,7 +319,7 @@ const FrontDesk: React.FC = () => {
     setCurrentDate(newDate);
   };
 
-  // Room type groups for display
+  // Room type groups
   const roomTypeGroups = [
     { title: 'Single', type: 'single', color: 'bg-green-500' },
     { title: 'Double', type: 'double', color: 'bg-teal-500' },
@@ -350,7 +336,7 @@ const FrontDesk: React.FC = () => {
   const handleRetry = () => {
     setError(null);
     setIsLoading(true);
-    // Reload the page to re-fetch data
+    // Trigger re-fetch by updating a dependency or calling the fetch function directly
     window.location.reload();
   };
 
@@ -375,7 +361,7 @@ const FrontDesk: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Failed to Load Data</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <div className="space-y-2">
-            <button
+            <button 
               onClick={handleRetry}
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors"
             >
@@ -384,8 +370,8 @@ const FrontDesk: React.FC = () => {
             <div className="text-sm text-gray-500">
               Or continue with demo data:
             </div>
-            <button
-              onClick={() => { setError(null); setIsLoading(false); }}
+            <button 
+              onClick={() => {setError(null); setIsLoading(false);}}
               className="border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg transition-colors"
             >
               Continue Anyway
@@ -424,7 +410,7 @@ const FrontDesk: React.FC = () => {
             <X className="w-5 h-5" />
           </button>
         </div>
-
+        
         <nav className="p-4">
           <ul className="space-y-2">
             {navigationItems.map((item) => {
@@ -463,7 +449,7 @@ const FrontDesk: React.FC = () => {
               </button>
               <h1 className="text-lg lg:text-xl font-semibold text-gray-900">Front Desk</h1>
             </div>
-
+            
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -502,7 +488,7 @@ const FrontDesk: React.FC = () => {
                 <ChevronRight className="w-4 h-4 text-gray-600" />
               </button>
             </div>
-
+            
             <div className="flex items-center gap-2">
               <select
                 value={selectedRoomType}
@@ -519,10 +505,10 @@ const FrontDesk: React.FC = () => {
         </div>
 
         {/* Booking Grid */}
-        <div className="flex-1 p-2 lg:p-3 overflow-auto"> {/* Added overflow-auto here for overall grid scrolling */}
+        <div className="flex-1 p-2 lg:p-3">
           <div className="bg-white rounded-lg shadow-sm border border-gray-300 overflow-hidden">
             {/* Date Header */}
-            <div className="border-b border-gray-300 bg-gray-50 sticky top-0 z-20"> {/* Made sticky */}
+            <div className="border-b border-gray-300 bg-gray-50">
               <div className="flex">
                 <div className="w-32 p-3 border-r border-gray-300 flex-shrink-0">
                   <span className="text-sm font-medium text-gray-600">Rooms</span>
@@ -553,9 +539,9 @@ const FrontDesk: React.FC = () => {
             {/* Room Groups */}
             {roomTypeGroups.map((group) => {
               const groupRooms = filteredRooms.filter(room => room.type === group.type);
-
+              
               if (groupRooms.length === 0) return null;
-
+              
               return (
                 <div key={group.type} className="border-b border-gray-200 last:border-b-0">
                   {/* Group Header */}
@@ -583,30 +569,27 @@ const FrontDesk: React.FC = () => {
                             <MoreHorizontal className="w-4 h-4 text-gray-400" />
                           </button>
                         </div>
-
+                        
                         {/* Booking Grid */}
-                        <div className="flex-1 overflow-x-auto"> {/* This allows horizontal scrolling for dates */}
+                        <div className="flex-1 overflow-x-auto">
                           <div className="flex relative" style={{ minWidth: `${generateDates.length * cellWidth}px` }}>
                             {generateDates.map((dateObj, dateIndex) => {
                               const { type, item } = getItemForRoomAndDate(room.number, dateObj.fullDate);
                               const isStart = isItemStart(room.number, dateObj.fullDate);
                               const span = isStart ? calculateItemSpan(room.number, dateObj.fullDate) : 0;
-
-                              // Determine if this specific date is part of *any* booking/reservation period
-                              const isPartOfBookingOrReservation = type !== null;
-
+                              
                               return (
                                 <div
                                   key={dateIndex}
                                   className={`flex-shrink-0 h-12 border-r border-gray-300 last:border-r-0 relative ${
                                     dateObj.isToday ? 'bg-emerald-50' : 'bg-white'
-                                  }${isPartOfBookingOrReservation ? ' ' + getItemTypeColor(type) : ''}`} // Added space before getItemTypeColor
+                                  }`}
                                   style={{ width: `${cellWidth}px` }}
                                 >
                                   {type && isStart && item && (
-                                    <div
+                                    <div 
                                       className={`absolute top-1 bottom-1 left-1 rounded-sm flex items-center justify-center text-xs font-medium ${getItemTypeColor(type)}`}
-                                      style={{
+                                      style={{ 
                                         width: `${(span * cellWidth) - 8}px`,
                                         zIndex: 10
                                       }}
@@ -663,6 +646,7 @@ const FrontDesk: React.FC = () => {
   );
 };
 
+// Export as default -
 // Export as default - This is your main page component
 export default function HotelBookingSystem() {
   return <FrontDesk />;
